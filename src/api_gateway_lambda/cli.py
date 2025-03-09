@@ -28,7 +28,7 @@ def create_api_gateway(args: argparse.Namespace) -> None:
     Args:
         args: Command line arguments.
     """
-    api_manager = ApiGatewayManager()
+    api_manager = ApiGatewayManager(profile_name=args.profile)
     
     try:
         api_id, invoke_url = api_manager.create_or_update_api_gateway(
@@ -58,7 +58,7 @@ def invoke_lambda(args: argparse.Namespace) -> None:
     Args:
         args: Command line arguments.
     """
-    lambda_client = LambdaClient()
+    lambda_client = LambdaClient(profile_name=args.profile)
     
     try:
         # Parse the payload if provided
@@ -94,8 +94,8 @@ def call_api(args: argparse.Namespace) -> None:
     Args:
         args: Command line arguments.
     """
-    api_client = ApiClient()
-    api_manager = ApiGatewayManager()
+    api_client = ApiClient(profile_name=args.profile)
+    api_manager = ApiGatewayManager(profile_name=args.profile)
     
     try:
         # Get the API Gateway ID from the config if not provided
@@ -139,7 +139,7 @@ def list_resources(args: argparse.Namespace) -> None:
     Args:
         args: Command line arguments.
     """
-    api_manager = ApiGatewayManager()
+    api_manager = ApiGatewayManager(profile_name=args.profile)
     
     try:
         # Get the API Gateway ID from the config if not provided
@@ -167,7 +167,7 @@ def delete_resource(args: argparse.Namespace) -> None:
     Args:
         args: Command line arguments.
     """
-    api_manager = ApiGatewayManager()
+    api_manager = ApiGatewayManager(profile_name=args.profile)
     
     try:
         # Get the API Gateway ID from the config if not provided
@@ -205,11 +205,13 @@ def main() -> None:
     create_parser.add_argument('--http-method', type=str, default='GET', help='HTTP method (GET, POST, etc.)')
     create_parser.add_argument('--stage', type=str, default='prod', help='API Gateway stage')
     create_parser.add_argument('--function-name', type=str, help='Lambda function name (defaults to config)')
+    create_parser.add_argument('--profile', type=str, default='latest', help='AWS profile name to use')
     
     # Invoke Lambda command
     invoke_parser = subparsers.add_parser('invoke-lambda', help='Invoke a Lambda function directly')
     invoke_parser.add_argument('--function-name', type=str, help='Lambda function name (defaults to config)')
     invoke_parser.add_argument('--payload', type=str, help='JSON payload to send to the Lambda function')
+    invoke_parser.add_argument('--profile', type=str, default='latest', help='AWS profile name to use')
     
     # Call API command
     call_parser = subparsers.add_parser('call-api', help='Call an API Gateway endpoint')
@@ -218,16 +220,19 @@ def main() -> None:
     call_parser.add_argument('--http-method', type=str, default='GET', help='HTTP method (GET, POST, etc.)')
     call_parser.add_argument('--stage', type=str, default='prod', help='API Gateway stage')
     call_parser.add_argument('--data', type=str, help='JSON data to send in the request body')
+    call_parser.add_argument('--profile', type=str, default='latest', help='AWS profile name to use')
     
     # List resources command
     list_parser = subparsers.add_parser('list-resources', help='List resources for an API Gateway')
     list_parser.add_argument('--api-id', type=str, help='API Gateway ID (defaults to config)')
+    list_parser.add_argument('--profile', type=str, default='latest', help='AWS profile name to use')
     
     # Delete resource command
     delete_parser = subparsers.add_parser('delete-resource', help='Delete a resource from an API Gateway')
     delete_parser.add_argument('--api-id', type=str, help='API Gateway ID (defaults to config)')
     delete_parser.add_argument('--resource-id', type=str, help='Resource ID to delete')
     delete_parser.add_argument('--resource-path', type=str, help='Resource path to delete (alternative to resource-id)')
+    delete_parser.add_argument('--profile', type=str, default='latest', help='AWS profile name to use')
     
     args = parser.parse_args()
     

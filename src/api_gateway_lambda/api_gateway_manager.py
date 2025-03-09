@@ -15,14 +15,15 @@ logger = logging.getLogger(__name__)
 class ApiGatewayManager:
     """Manager class for AWS API Gateway operations."""
 
-    def __init__(self, config: Optional[Config] = None) -> None:
+    def __init__(self, config: Optional[Config] = None, profile_name: Optional[str] = None) -> None:
         """
         Initialize the API Gateway Manager.
 
         Args:
             config (Optional[Config]): Configuration object. If None, a default Config will be created.
+            profile_name (Optional[str]): AWS profile name to use. Defaults to None.
         """
-        self.config = config or Config()
+        self.config = config or Config(profile_name=profile_name)
         self.api_gateway_client = boto3.client('apigateway', **self.config.get_boto3_config())
         self.lambda_client = boto3.client('lambda', **self.config.get_boto3_config())
 

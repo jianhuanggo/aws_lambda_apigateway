@@ -14,14 +14,15 @@ logger = logging.getLogger(__name__)
 class ApiClient:
     """Client class for making requests to API Gateway endpoints."""
 
-    def __init__(self, config: Optional[Config] = None) -> None:
+    def __init__(self, config: Optional[Config] = None, profile_name: Optional[str] = None) -> None:
         """
         Initialize the API Client.
 
         Args:
             config (Optional[Config]): Configuration object. If None, a default Config will be created.
+            profile_name (Optional[str]): AWS profile name to use. Defaults to None.
         """
-        self.config = config or Config()
+        self.config = config or Config(profile_name=profile_name)
 
     def make_request(self, url: str, method: str = 'GET', 
                     headers: Optional[Dict[str, str]] = None,

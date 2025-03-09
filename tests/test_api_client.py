@@ -14,6 +14,14 @@ class TestApiClient:
     def api_client(self):
         """Fixture for creating an ApiClient instance."""
         return ApiClient()
+        
+    def test_init_with_profile_name(self):
+        """Test initialization with profile name."""
+        # Create the client with a profile name
+        client = ApiClient(profile_name='latest')
+        
+        # Verify the profile name was passed to the Config
+        assert client.config.profile_name == 'latest'
 
     @patch('requests.request')
     def test_make_request_get(self, mock_request, api_client):

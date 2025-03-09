@@ -25,6 +25,7 @@ class TestConfig:
             assert config.aws_region == 'us-west-2'
             assert config.api_gateway_id == 'test_api_id'
             assert config.lambda_function_name == 'test_lambda_function'
+            assert config.profile_name is None
 
     def test_init_with_default_values(self):
         """Test initialization with default values."""
@@ -36,6 +37,22 @@ class TestConfig:
             assert config.aws_region == 'us-east-1'
             assert config.api_gateway_id == '5321hipmwk'
             assert config.lambda_function_name == 'lambda-pg_api_metadata'
+            assert config.profile_name is None
+
+    def test_init_with_profile_name(self):
+        """Test initialization with profile name."""
+        config = Config(profile_name='latest')
+        
+        assert config.profile_name == 'latest'
+
+    def test_init_with_profile_name_from_env(self):
+        """Test initialization with profile name from environment variable."""
+        with patch.dict(os.environ, {
+            'AWS_PROFILE': 'test_profile'
+        }):
+            config = Config()
+            
+            assert config.profile_name == 'test_profile'
 
     def test_get_boto3_config_with_credentials(self):
         """Test get_boto3_config with credentials."""
@@ -50,6 +67,7 @@ class TestConfig:
             assert boto3_config['region_name'] == 'us-west-2'
             assert boto3_config['aws_access_key_id'] == 'test_access_key'
             assert boto3_config['aws_secret_access_key'] == 'test_secret_key'
+            assert 'profile_name' not in boto3_config
 
     def test_get_boto3_config_without_credentials(self):
         """Test get_boto3_config without credentials."""
@@ -60,5 +78,31 @@ class TestConfig:
             boto3_config = config.get_boto3_config()
             
             assert boto3_config['region_name'] == 'us-west-2'
+            assert 'aws_access_key_id' not in boto3_config
+            assert 'aws_secret_access_key' not in boto3_config
+            assert 'profile_name' not in boto3_config
+
+    def test_get_boto3_config_with_profile(self):
+        """Test get_boto3_config with profile name."""
+        config = Config(profile_name='latest')
+        boto3_config = config.get_boto3_config()
+        
+        assert boto3_config['region_name'] == 'us-east-1'
+        assert boto3_config['profile_name'] == 'latest'
+        assert 'aws_access_key_id' not in boto3_config
+        assert 'aws_secret_access_key' not in boto3_config
+
+    def test_profile_takes_precedence_over_credentials(self):
+        """Test that profile takes precedence over credentials."""
+        with patch.dict(os.environ, {
+            'AWS_ACCESS_KEY_ID': 'test_access_key',
+            'AWS_SECRET_ACCESS_KEY': 'test_secret_key',
+            'AWS_REGION': 'us-west-2'
+        }):
+            config = Config(profile_name='latest')
+            boto3_config = config.get_boto3_config()
+            
+            assert boto3_config['region_name'] == 'us-west-2'
+            assert boto3_config['profile_name'] == 'latest'
             assert 'aws_access_key_id' not in boto3_config
             assert 'aws_secret_access_key' not in boto3_config

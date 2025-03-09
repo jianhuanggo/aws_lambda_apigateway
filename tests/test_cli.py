@@ -54,7 +54,8 @@ class TestCLI:
             resource_path='test-resource',
             http_method='GET',
             stage='prod',
-            function_name='test_function'
+            function_name='test_function',
+            profile='latest'
         )
         
         # Call the function
@@ -81,7 +82,8 @@ class TestCLI:
             resource_path='test-resource',
             http_method='GET',
             stage='prod',
-            function_name='test_function'
+            function_name='test_function',
+            profile='latest'
         )
         
         # Call the function
@@ -100,7 +102,8 @@ class TestCLI:
         # Create args
         args = argparse.Namespace(
             function_name='test_function',
-            payload='{"key": "value"}'
+            payload='{"key": "value"}',
+            profile='latest'
         )
         
         # Call the function
@@ -122,7 +125,8 @@ class TestCLI:
         # Create args
         args = argparse.Namespace(
             function_name=None,
-            payload='{"key": "value"}'
+            payload='{"key": "value"}',
+            profile='latest'
         )
         
         # Call the function
@@ -142,7 +146,8 @@ class TestCLI:
         # Create args with invalid JSON
         args = argparse.Namespace(
             function_name='test_function',
-            payload='invalid_json'
+            payload='invalid_json',
+            profile='latest'
         )
         
         # Call the function
@@ -168,7 +173,8 @@ class TestCLI:
             resource_path='test-resource',
             http_method='GET',
             stage='prod',
-            data='{"key": "value"}'
+            data='{"key": "value"}',
+            profile='latest'
         )
         
         # Call the function
@@ -198,7 +204,8 @@ class TestCLI:
             resource_path='test-resource',
             http_method='GET',
             stage='prod',
-            data=None
+            data=None,
+            profile='latest'
         )
         
         # Call the function
@@ -232,7 +239,8 @@ class TestCLI:
         
         # Create args
         args = argparse.Namespace(
-            api_id='test_api_id'
+            api_id='test_api_id',
+            profile='latest'
         )
         
         # Call the function
@@ -251,7 +259,8 @@ class TestCLI:
         args = argparse.Namespace(
             api_id='test_api_id',
             resource_id='test_resource_id',
-            resource_path=None
+            resource_path=None,
+            profile='latest'
         )
         
         # Call the function
@@ -271,7 +280,8 @@ class TestCLI:
         args = argparse.Namespace(
             api_id='test_api_id',
             resource_id=None,
-            resource_path='/test-resource'
+            resource_path='/test-resource',
+            profile='latest'
         )
         
         # Call the function
@@ -292,7 +302,8 @@ class TestCLI:
         args = argparse.Namespace(
             api_id='test_api_id',
             resource_id=None,
-            resource_path='/test-resource'
+            resource_path='/test-resource',
+            profile='latest'
         )
         
         # Call the function

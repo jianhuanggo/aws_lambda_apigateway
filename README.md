@@ -25,7 +25,10 @@ AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=us-east-1
 API_GATEWAY_ID=5321hipmwk
 LAMBDA_FUNCTION_NAME=lambda-pg_api_metadata
+AWS_PROFILE=your_profile_name
 ```
+
+You can use either AWS credentials (access key and secret key) or an AWS profile for authentication. If both are provided, the AWS profile takes precedence.
 
 ## Usage
 
@@ -114,6 +117,23 @@ aws-lambda-api list-resources
 # Delete a resource from an API Gateway
 aws-lambda-api delete-resource --resource-path "/my-resource"
 ```
+
+#### AWS Profile Support
+
+The package supports using AWS profiles for authentication. You can specify a profile name when using the CLI:
+
+```bash
+# Use the "latest" AWS profile
+aws-lambda-api create-api --api-name "MyAPI" --resource-path "my-resource" --profile "latest"
+
+# Invoke a Lambda function with a specific profile
+aws-lambda-api invoke-lambda --function-name "my-function" --payload '{"key": "value"}' --profile "latest"
+
+# Call an API Gateway endpoint with a specific profile
+aws-lambda-api call-api --resource-path "my-resource" --profile "latest"
+```
+
+By default, all commands use the "latest" profile if no profile is specified.
 
 #### Command Details
 

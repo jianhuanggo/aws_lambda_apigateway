@@ -80,6 +80,86 @@ response = lambda_client.invoke_lambda(
 print(f"Response: {response}")
 ```
 
+### Command Line Interface
+
+The package provides a command-line interface for interacting with AWS API Gateway and Lambda functions.
+
+#### Installation
+
+```bash
+# Install the package in development mode
+pip install -e .
+```
+
+After installation, the `aws-lambda-api` command will be available in your environment.
+
+#### Available Commands
+
+```bash
+# Show help
+aws-lambda-api --help
+
+# Create or update an API Gateway
+aws-lambda-api create-api --api-name "MyAPI" --resource-path "my-resource" --http-method "GET"
+
+# Invoke a Lambda function directly
+aws-lambda-api invoke-lambda --function-name "my-function" --payload '{"key": "value"}'
+
+# Call an API Gateway endpoint
+aws-lambda-api call-api --resource-path "my-resource" --http-method "GET"
+
+# List resources for an API Gateway
+aws-lambda-api list-resources
+
+# Delete a resource from an API Gateway
+aws-lambda-api delete-resource --resource-path "/my-resource"
+```
+
+#### Command Details
+
+1. **create-api**: Create or update an API Gateway endpoint
+   ```bash
+   aws-lambda-api create-api --api-name "MyAPI" --resource-path "my-resource" --http-method "GET" --stage "prod" --function-name "my-function"
+   ```
+   - `--api-name`: Name of the API Gateway (required)
+   - `--resource-path`: Resource path (required)
+   - `--http-method`: HTTP method (default: GET)
+   - `--stage`: API Gateway stage (default: prod)
+   - `--function-name`: Lambda function name (defaults to config)
+
+2. **invoke-lambda**: Invoke a Lambda function directly
+   ```bash
+   aws-lambda-api invoke-lambda --function-name "my-function" --payload '{"key": "value"}'
+   ```
+   - `--function-name`: Lambda function name (defaults to config)
+   - `--payload`: JSON payload to send to the Lambda function
+
+3. **call-api**: Call an API Gateway endpoint
+   ```bash
+   aws-lambda-api call-api --api-id "your-api-id" --resource-path "my-resource" --http-method "GET" --stage "prod" --data '{"key": "value"}'
+   ```
+   - `--api-id`: API Gateway ID (defaults to config)
+   - `--resource-path`: Resource path (required)
+   - `--http-method`: HTTP method (default: GET)
+   - `--stage`: API Gateway stage (default: prod)
+   - `--data`: JSON data to send in the request body
+
+4. **list-resources**: List resources for an API Gateway
+   ```bash
+   aws-lambda-api list-resources --api-id "your-api-id"
+   ```
+   - `--api-id`: API Gateway ID (defaults to config)
+
+5. **delete-resource**: Delete a resource from an API Gateway
+   ```bash
+   aws-lambda-api delete-resource --api-id "your-api-id" --resource-id "resource-id"
+   # OR
+   aws-lambda-api delete-resource --api-id "your-api-id" --resource-path "/my-resource"
+   ```
+   - `--api-id`: API Gateway ID (defaults to config)
+   - `--resource-id`: Resource ID to delete
+   - `--resource-path`: Resource path to delete (alternative to resource-id)
+
 ## Examples
 
 The `examples` directory contains several scripts demonstrating different aspects of the package:

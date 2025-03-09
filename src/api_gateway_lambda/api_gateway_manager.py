@@ -328,6 +328,50 @@ class ApiGatewayManager:
             resource_path = f"/{resource_path}"
             
         return f"https://{api_id}.execute-api.{self.config.aws_region}.amazonaws.com/{stage_name}{resource_path}"
+        
+    def delete_resource(self, api_id: str, resource_id: str) -> None:
+        """
+        Delete a resource from the API Gateway.
+
+        Args:
+            api_id (str): The ID of the API Gateway.
+            resource_id (str): The ID of the resource to delete.
+
+        Raises:
+            ClientError: If the resource deletion fails.
+        """
+        try:
+            self.api_gateway_client.delete_resource(
+                restApiId=api_id,
+                resourceId=resource_id
+            )
+            logger.info(f"Deleted resource with ID: {resource_id}")
+        except ClientError as e:
+            logger.error(f"Failed to delete resource {resource_id}: {e}")
+            raise
+            
+    def delete_method(self, api_id: str, resource_id: str, http_method: str) -> None:
+        """
+        Delete a method from a resource.
+
+        Args:
+            api_id (str): The ID of the API Gateway.
+            resource_id (str): The ID of the resource.
+            http_method (str): The HTTP method (GET, POST, etc.).
+
+        Raises:
+            ClientError: If the method deletion fails.
+        """
+        try:
+            self.api_gateway_client.delete_method(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod=http_method
+            )
+            logger.info(f"Deleted {http_method} method from resource {resource_id}")
+        except ClientError as e:
+            logger.error(f"Failed to delete method {http_method} from resource {resource_id}: {e}")
+            raise
 
     def get_api_gateway_by_id(self, api_id: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -404,20 +448,33 @@ class ApiGatewayManager:
         resource = self.find_resource_by_path(api_id, f"/{resource_path}")
         if resource:
             resource_id = resource['id']
-            logger.info(f"Using existing resource with ID: {resource_id}")
-        else:
-            # Create a new resource
-            resource_id = self.create_resource(api_id, resource_path)
+            logger.info(f"Found existing resource with ID: {resource_id}")
+            
+            # Delete the existing method if it exists
+            try:
+                self.delete_method(api_id, resource_id, http_method)
+                logger.info(f"Deleted existing method {http_method} for resource {resource_id}")
+            except ClientError as e:
+                # If the method doesn't exist, that's fine
+                if 'NotFoundException' in str(e):
+                    logger.info(f"Method {http_method} does not exist for resource {resource_id}")
+                else:
+                    # For other errors, log and continue
+                    logger.warning(f"Error deleting method {http_method} for resource {resource_id}: {e}")
+            
+            # Delete the existing resource
+            try:
+                self.delete_resource(api_id, resource_id)
+                logger.info(f"Deleted existing resource with ID: {resource_id}")
+            except ClientError as e:
+                # Log the error but continue with creation
+                logger.warning(f"Error deleting resource {resource_id}: {e}")
+        
+        # Create a new resource
+        resource_id = self.create_resource(api_id, resource_path)
         
         # Create the method and integrate with Lambda
-        try:
-            self.create_method(api_id, resource_id, http_method)
-        except ClientError as e:
-            if 'ConflictException' in str(e):
-                logger.warning(f"Method {http_method} already exists for resource {resource_id}")
-            else:
-                raise
-        
+        self.create_method(api_id, resource_id, http_method)
         self.integrate_with_lambda(api_id, resource_id, http_method, function_name)
         self.add_lambda_permission(function_name, api_id)
         

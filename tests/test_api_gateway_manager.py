@@ -36,6 +36,27 @@ class TestApiGatewayManager:
         manager._lambda_client = mock_lambda
         
         return manager
+        
+    def test_init_with_profile_name(self, mock_boto3_client):
+        """Test initialization with profile name."""
+        # Configure the mock clients
+        mock_apigateway = MagicMock()
+        mock_lambda = MagicMock()
+        mock_boto3_client.side_effect = lambda service, **kwargs: {
+            'apigateway': mock_apigateway,
+            'lambda': mock_lambda,
+            'sts': MagicMock(get_caller_identity=MagicMock(return_value={'Account': '123456789012'}))
+        }[service]
+        
+        # Create the manager with a profile name
+        manager = ApiGatewayManager(profile_name='latest')
+        
+        # Verify the profile name was passed to the Config
+        assert manager.config.profile_name == 'latest'
+        
+        # Verify boto3 client was called with the correct parameters
+        mock_boto3_client.assert_any_call('apigateway', **manager.config.get_boto3_config())
+        mock_boto3_client.assert_any_call('lambda', **manager.config.get_boto3_config())
 
     def test_create_api_gateway(self, api_gateway_manager):
         """Test create_api_gateway method."""
@@ -288,7 +309,7 @@ class TestApiGatewayManager:
         
         # Call the method
         api_id, invoke_url = api_gateway_manager.create_or_update_api_gateway(
-            'TestAPI', 'test', 'GET', 'test_function'
+            'TestAPI', 'test', 'GET', lambda_function_name='test_function'
         )
         
         # Verify the result

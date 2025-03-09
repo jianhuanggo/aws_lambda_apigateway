@@ -32,6 +32,23 @@ class TestLambdaClient:
         client._lambda_client = mock_lambda
         
         return client
+        
+    def test_init_with_profile_name(self, mock_boto3_client):
+        """Test initialization with profile name."""
+        # Configure the mock client
+        mock_lambda = MagicMock()
+        mock_boto3_client.side_effect = lambda service, **kwargs: {
+            'lambda': mock_lambda
+        }[service]
+        
+        # Create the client with a profile name
+        client = LambdaClient(profile_name='latest')
+        
+        # Verify the profile name was passed to the Config
+        assert client.config.profile_name == 'latest'
+        
+        # Verify boto3 client was called with the correct parameters
+        mock_boto3_client.assert_called_once_with('lambda', **client.config.get_boto3_config())
 
     def test_invoke_lambda(self, lambda_client):
         """Test invoke_lambda method."""

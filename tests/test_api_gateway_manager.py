@@ -241,8 +241,40 @@ class TestApiGatewayManager:
         url = api_gateway_manager.get_invoke_url('test_api_id', 'prod', 'test_resource')
         assert url == 'https://test_api_id.execute-api.us-east-1.amazonaws.com/prod/test_resource'
 
+    def test_delete_resource(self, api_gateway_manager):
+        """Test delete_resource method."""
+        # Configure the mock
+        api_id = "test_api_id"
+        resource_id = "test_resource_id"
+        
+        # Call the method
+        api_gateway_manager.delete_resource(api_id, resource_id)
+        
+        # Verify the mock was called correctly
+        api_gateway_manager.api_gateway_client.delete_resource.assert_called_once_with(
+            restApiId=api_id,
+            resourceId=resource_id
+        )
+    
+    def test_delete_method(self, api_gateway_manager):
+        """Test delete_method method."""
+        # Configure the mock
+        api_id = "test_api_id"
+        resource_id = "test_resource_id"
+        http_method = "GET"
+        
+        # Call the method
+        api_gateway_manager.delete_method(api_id, resource_id, http_method)
+        
+        # Verify the mock was called correctly
+        api_gateway_manager.api_gateway_client.delete_method.assert_called_once_with(
+            restApiId=api_id,
+            resourceId=resource_id,
+            httpMethod=http_method
+        )
+    
     def test_create_or_update_api_gateway(self, api_gateway_manager):
-        """Test create_or_update_api_gateway method."""
+        """Test create_or_update_api_gateway method with no existing resource."""
         # Configure the mocks
         api_gateway_manager.config.api_gateway_id = 'existing_api_id'
         api_gateway_manager.get_api_gateway_by_id = MagicMock()
@@ -274,3 +306,54 @@ class TestApiGatewayManager:
         api_gateway_manager.add_lambda_permission.assert_called_once_with('test_function', 'existing_api_id')
         api_gateway_manager.deploy_api.assert_called_once_with('existing_api_id', 'prod')
         api_gateway_manager.get_invoke_url.assert_called_once_with('existing_api_id', 'prod', 'test')
+        
+    def test_create_or_update_api_gateway_with_existing_resource(self, api_gateway_manager):
+        """Test create_or_update_api_gateway method with an existing resource."""
+        # Configure the mocks
+        api_id = "test_api_id"
+        api_name = "test_api"
+        resource_path = "test-resource"
+        http_method = "GET"
+        resource_id = "test_resource_id"
+        new_resource_id = "new_resource_id"
+        function_name = "test_function"
+        invoke_url = f"https://{api_id}.execute-api.us-east-1.amazonaws.com/prod/{resource_path}"
+        
+        # Mock the config
+        api_gateway_manager.config.api_gateway_id = api_id
+        api_gateway_manager.config.lambda_function_name = function_name
+        
+        # Mock the API Gateway client responses
+        api_gateway_manager.get_api_gateway_by_id = MagicMock(return_value={"id": api_id})
+        api_gateway_manager.find_resource_by_path = MagicMock(return_value={"id": resource_id, "path": f"/{resource_path}"})
+        api_gateway_manager.delete_method = MagicMock()
+        api_gateway_manager.delete_resource = MagicMock()
+        api_gateway_manager.create_resource = MagicMock(return_value=new_resource_id)
+        api_gateway_manager.create_method = MagicMock()
+        api_gateway_manager.integrate_with_lambda = MagicMock()
+        api_gateway_manager.add_lambda_permission = MagicMock()
+        api_gateway_manager.deploy_api = MagicMock()
+        api_gateway_manager.get_invoke_url = MagicMock(return_value=invoke_url)
+        
+        # Call the method
+        result_api_id, result_invoke_url = api_gateway_manager.create_or_update_api_gateway(
+            api_name=api_name,
+            resource_path=resource_path,
+            http_method=http_method
+        )
+        
+        # Verify the result
+        assert result_api_id == api_id
+        assert result_invoke_url == invoke_url
+        
+        # Verify the mocks were called correctly
+        api_gateway_manager.get_api_gateway_by_id.assert_called_once_with(api_id)
+        api_gateway_manager.find_resource_by_path.assert_called_once_with(api_id, f"/{resource_path}")
+        api_gateway_manager.delete_method.assert_called_once_with(api_id, resource_id, http_method)
+        api_gateway_manager.delete_resource.assert_called_once_with(api_id, resource_id)
+        api_gateway_manager.create_resource.assert_called_once_with(api_id, resource_path)
+        api_gateway_manager.create_method.assert_called_once_with(api_id, new_resource_id, http_method)
+        api_gateway_manager.integrate_with_lambda.assert_called_once_with(api_id, new_resource_id, http_method, function_name)
+        api_gateway_manager.add_lambda_permission.assert_called_once_with(function_name, api_id)
+        api_gateway_manager.deploy_api.assert_called_once_with(api_id, 'prod')
+        api_gateway_manager.get_invoke_url.assert_called_once_with(api_id, 'prod', resource_path)

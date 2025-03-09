@@ -36,7 +36,7 @@ def create_api_gateway(args: argparse.Namespace) -> None:
             resource_path=args.resource_path,
             http_method=args.http_method,
             stage_name=args.stage,
-            function_name=args.function_name
+            lambda_function_name=args.function_name
         )
         
         logger.info(f"API Gateway created/updated successfully with ID: {api_id}")

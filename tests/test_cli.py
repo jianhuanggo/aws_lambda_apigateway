@@ -67,7 +67,7 @@ class TestCLI:
             resource_path='test-resource',
             http_method='GET',
             stage_name='prod',
-            function_name='test_function'
+            lambda_function_name='test_function'
         )
 
     def test_create_api_gateway_error(self, mock_api_gateway_manager, mock_sys_exit):

@@ -288,7 +288,7 @@ class TestApiGatewayManager:
         
         # Call the method
         api_id, invoke_url = api_gateway_manager.create_or_update_api_gateway(
-            'TestAPI', 'test', 'GET', 'test_function'
+            'TestAPI', 'test', 'GET', 'prod', 'test_function'
         )
         
         # Verify the result

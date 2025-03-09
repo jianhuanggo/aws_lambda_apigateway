@@ -418,7 +418,8 @@ class ApiGatewayManager:
             raise
 
     def create_or_update_api_gateway(self, api_name: str, resource_path: str, 
-                                    http_method: str, lambda_function_name: Optional[str] = None) -> Tuple[str, str]:
+                                    http_method: str, stage_name: str = 'prod',
+                                    lambda_function_name: Optional[str] = None) -> Tuple[str, str]:
         """
         Create or update an API Gateway with a resource and method integrated with a Lambda function.
 
@@ -426,6 +427,7 @@ class ApiGatewayManager:
             api_name (str): The name of the API Gateway.
             resource_path (str): The path of the resource.
             http_method (str): The HTTP method (GET, POST, etc.).
+            stage_name (str): The name of the stage to deploy to. Defaults to 'prod'.
             lambda_function_name (Optional[str]): The name of the Lambda function.
                 If None, the default from config will be used.
 
@@ -480,9 +482,9 @@ class ApiGatewayManager:
         self.add_lambda_permission(function_name, api_id)
         
         # Deploy the API
-        self.deploy_api(api_id, 'prod')
+        self.deploy_api(api_id, stage_name)
         
         # Get the invoke URL
-        invoke_url = self.get_invoke_url(api_id, 'prod', resource_path)
+        invoke_url = self.get_invoke_url(api_id, stage_name, resource_path)
         
         return api_id, invoke_url

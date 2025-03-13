@@ -1,4 +1,3 @@
--e git+ssh://git@github.com/jianhuanggo/aws_lambda_apigateway.git@929d732093d710386da11c602eea8f098790bf4b#egg=aws_lambda_apigateway
 boto3==1.37.9
 botocore==1.37.9
 certifi==2025.1.31

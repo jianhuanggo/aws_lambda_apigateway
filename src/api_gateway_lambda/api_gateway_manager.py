@@ -23,9 +23,14 @@ class ApiGatewayManager:
             config (Optional[Config]): Configuration object. If None, a default Config will be created.
             profile_name (Optional[str]): AWS profile name to use. Defaults to None.
         """
-        self.config = config or Config(profile_name=profile_name)
-        self.api_gateway_client = boto3.client('apigateway', **self.config.get_boto3_config())
-        self.lambda_client = boto3.client('lambda', **self.config.get_boto3_config())
+        self.config = config or Config()
+
+        # Create a session using the profile name if provided
+        session = boto3.Session(profile_name=profile_name) if profile_name else boto3.Session()
+
+        # Use the session to create clients
+        self.api_gateway_client = session.client('apigateway', **self.config.get_boto3_config())
+        self.lambda_client = session.client('lambda', **self.config.get_boto3_config())
 
     def create_api_gateway(self, name: str, description: str = "") -> str:
         """
@@ -417,9 +422,12 @@ class ApiGatewayManager:
             logger.error(f"Failed to find resource by path {path}: {e}")
             raise
 
-    def create_or_update_api_gateway(self, api_name: str, resource_path: str, 
-                                    http_method: str, stage_name: str = 'prod',
-                                    lambda_function_name: Optional[str] = None) -> Tuple[str, str]:
+    def create_or_update_api_gateway(self,
+                                     api_name: str,
+                                     resource_path: str,
+                                     http_method: str,
+                                     stage_name: str = 'prod',
+                                     lambda_function_name: Optional[str] = None) -> Tuple[str, str]:
         """
         Create or update an API Gateway with a resource and method integrated with a Lambda function.
 
@@ -487,4 +495,79 @@ class ApiGatewayManager:
         # Get the invoke URL
         invoke_url = self.get_invoke_url(api_id, stage_name, resource_path)
         
+        return api_id, invoke_url
+
+    def create_or_update_api_gateway2(self,
+                                     api_name: str,
+                                     resource_path: str,
+                                     http_method: str,
+                                     stage_name: str = 'prod',
+                                     lambda_function_name: Optional[str] = None) -> Tuple[str, str]:
+        """
+        Create or update an API Gateway with a resource and method integrated with a Lambda function.
+
+        Args:
+            api_name (str): The name of the API Gateway.
+            resource_path (str): The path of the resource.
+            http_method (str): The HTTP method (GET, POST, etc.).
+            stage_name (str): The name of the stage to deploy to. Defaults to 'prod'.
+            lambda_function_name (Optional[str]): The name of the Lambda function.
+                If None, the default from config will be used.
+
+        Returns:
+            Tuple[str, str]: The API Gateway ID and the invoke URL.
+        """
+        # Use the provided Lambda function name or the default from config
+        function_name = lambda_function_name or self.config.lambda_function_name
+
+        try:
+            # Try to use the existing API Gateway from config
+            api_id = self.config.api_gateway_id
+            self.get_api_gateway_by_id(api_id)
+            logger.info(f"Using existing API Gateway with ID: {api_id}")
+        except ClientError:
+            # Create a new API Gateway if the existing one is not found
+            logger.info(f"Creating new API Gateway with name: {api_name}")
+            api_id = self.create_api_gateway(api_name)
+
+        # Check if the resource already exists
+        resource = self.find_resource_by_path(api_id, f"/{resource_path}")
+        if resource:
+            resource_id = resource['id']
+            logger.info(f"Found existing resource with ID: {resource_id}")
+
+            # Delete the existing method if it exists
+            try:
+                self.delete_method(api_id, resource_id, http_method)
+                logger.info(f"Deleted existing method {http_method} for resource {resource_id}")
+            except ClientError as e:
+                # If the method doesn't exist, that's fine
+                if 'NotFoundException' in str(e):
+                    logger.info(f"Method {http_method} does not exist for resource {resource_id}")
+                else:
+                    # For other errors, log and continue
+                    logger.warning(f"Error deleting method {http_method} for resource {resource_id}: {e}")
+
+            # Delete the existing resource
+            try:
+                self.delete_resource(api_id, resource_id)
+                logger.info(f"Deleted existing resource with ID: {resource_id}")
+            except ClientError as e:
+                # Log the error but continue with creation
+                logger.warning(f"Error deleting resource {resource_id}: {e}")
+
+        # Create a new resource
+        resource_id = self.create_resource(api_id, resource_path)
+
+        # Create the method and integrate with Lambda
+        self.create_method(api_id, resource_id, http_method)
+        self.integrate_with_lambda(api_id, resource_id, http_method, function_name)
+        self.add_lambda_permission(function_name, api_id)
+
+        # Deploy the API
+        self.deploy_api(api_id, stage_name)
+
+        # Get the invoke URL
+        invoke_url = self.get_invoke_url(api_id, stage_name, resource_path)
+
         return api_id, invoke_url

@@ -179,7 +179,8 @@ class ApiGatewayManager:
             raise
 
     def integrate_with_lambda(self, api_id: str, resource_id: str, http_method: str,
-                             lambda_function_name: Optional[str] = None) -> None:
+                             lambda_function_name: Optional[str] = None,
+                             use_proxy_integration: bool = True) -> None:
         """
         Integrate a resource method with a Lambda function.
 
@@ -189,6 +190,9 @@ class ApiGatewayManager:
             http_method (str): The HTTP method (GET, POST, etc.).
             lambda_function_name (Optional[str]): The name of the Lambda function.
                 If None, the default from config will be used.
+            use_proxy_integration (bool): Whether to use Lambda proxy integration.
+                Defaults to True. If True, the entire request will be passed to the Lambda function
+                and the Lambda function's response will be returned directly to the client.
 
         Raises:
             ClientError: If the integration fails.
@@ -198,37 +202,45 @@ class ApiGatewayManager:
             lambda_arn = self.get_lambda_arn(function_name)
             
             # Create the integration
-            self.api_gateway_client.put_integration(
-                restApiId=api_id,
-                resourceId=resource_id,
-                httpMethod=http_method,
-                type='AWS',
-                integrationHttpMethod='POST',
-                uri=f'arn:aws:apigateway:{self.config.aws_region}:lambda:path/2015-03-31/functions/{lambda_arn}/invocations',
-                contentHandling='CONVERT_TO_TEXT'
-            )
+            integration_type = 'AWS_PROXY' if use_proxy_integration else 'AWS'
+            integration_params = {
+                'restApiId': api_id,
+                'resourceId': resource_id,
+                'httpMethod': http_method,
+                'type': integration_type,
+                'integrationHttpMethod': 'POST',
+                'uri': f'arn:aws:apigateway:{self.config.aws_region}:lambda:path/2015-03-31/functions/{lambda_arn}/invocations'
+            }
             
-            # Set up the integration response
-            self.api_gateway_client.put_integration_response(
-                restApiId=api_id,
-                resourceId=resource_id,
-                httpMethod=http_method,
-                statusCode='200',
-                selectionPattern=''
-            )
+            # Add contentHandling only for non-proxy integration
+            if not use_proxy_integration:
+                integration_params['contentHandling'] = 'CONVERT_TO_TEXT'
+                
+            self.api_gateway_client.put_integration(**integration_params)
             
-            # Set up the method response
-            self.api_gateway_client.put_method_response(
-                restApiId=api_id,
-                resourceId=resource_id,
-                httpMethod=http_method,
-                statusCode='200',
-                responseModels={
-                    'application/json': 'Empty'
-                }
-            )
+            # Set up the integration response and method response only for non-proxy integration
+            if not use_proxy_integration:
+                # Set up the integration response
+                self.api_gateway_client.put_integration_response(
+                    restApiId=api_id,
+                    resourceId=resource_id,
+                    httpMethod=http_method,
+                    statusCode='200',
+                    selectionPattern=''
+                )
+                
+                # Set up the method response
+                self.api_gateway_client.put_method_response(
+                    restApiId=api_id,
+                    resourceId=resource_id,
+                    httpMethod=http_method,
+                    statusCode='200',
+                    responseModels={
+                        'application/json': 'Empty'
+                    }
+                )
             
-            logger.info(f"Integrated {http_method} method with Lambda function {function_name}")
+            logger.info(f"Integrated {http_method} method with Lambda function {function_name} using {'proxy' if use_proxy_integration else 'non-proxy'} integration")
         except ClientError as e:
             logger.error(f"Failed to integrate with Lambda function: {e}")
             raise
@@ -427,7 +439,8 @@ class ApiGatewayManager:
                                      resource_path: str,
                                      http_method: str,
                                      stage_name: str = 'prod',
-                                     lambda_function_name: Optional[str] = None) -> Tuple[str, str]:
+                                     lambda_function_name: Optional[str] = None,
+                                     use_proxy_integration: bool = True) -> Tuple[str, str]:
         """
         Create or update an API Gateway with a resource and method integrated with a Lambda function.
 
@@ -438,6 +451,9 @@ class ApiGatewayManager:
             stage_name (str): The name of the stage to deploy to. Defaults to 'prod'.
             lambda_function_name (Optional[str]): The name of the Lambda function.
                 If None, the default from config will be used.
+            use_proxy_integration (bool): Whether to use Lambda proxy integration.
+                Defaults to True. If True, the entire request will be passed to the Lambda function
+                and the Lambda function's response will be returned directly to the client.
 
         Returns:
             Tuple[str, str]: The API Gateway ID and the invoke URL.
@@ -486,7 +502,7 @@ class ApiGatewayManager:
         
         # Create the method and integrate with Lambda
         self.create_method(api_id, resource_id, http_method)
-        self.integrate_with_lambda(api_id, resource_id, http_method, function_name)
+        self.integrate_with_lambda(api_id, resource_id, http_method, function_name, use_proxy_integration)
         self.add_lambda_permission(function_name, api_id)
         
         # Deploy the API
@@ -502,7 +518,8 @@ class ApiGatewayManager:
                                      resource_path: str,
                                      http_method: str,
                                      stage_name: str = 'prod',
-                                     lambda_function_name: Optional[str] = None) -> Tuple[str, str]:
+                                     lambda_function_name: Optional[str] = None,
+                                     use_proxy_integration: bool = True) -> Tuple[str, str]:
         """
         Create or update an API Gateway with a resource and method integrated with a Lambda function.
 
@@ -513,6 +530,9 @@ class ApiGatewayManager:
             stage_name (str): The name of the stage to deploy to. Defaults to 'prod'.
             lambda_function_name (Optional[str]): The name of the Lambda function.
                 If None, the default from config will be used.
+            use_proxy_integration (bool): Whether to use Lambda proxy integration.
+                Defaults to True. If True, the entire request will be passed to the Lambda function
+                and the Lambda function's response will be returned directly to the client.
 
         Returns:
             Tuple[str, str]: The API Gateway ID and the invoke URL.
@@ -561,7 +581,7 @@ class ApiGatewayManager:
 
         # Create the method and integrate with Lambda
         self.create_method(api_id, resource_id, http_method)
-        self.integrate_with_lambda(api_id, resource_id, http_method, function_name)
+        self.integrate_with_lambda(api_id, resource_id, http_method, function_name, use_proxy_integration)
         self.add_lambda_permission(function_name, api_id)
 
         # Deploy the API

@@ -50,6 +50,32 @@ api_id, invoke_url = api_manager.create_or_update_api_gateway(
 print(f"API Gateway endpoint URL: {invoke_url}")
 ```
 
+### Lambda Proxy Integration
+
+By default, the API Gateway is configured to use Lambda proxy integration, which passes the entire request to the Lambda function and returns the Lambda function's response directly to the client. This simplifies the integration between API Gateway and Lambda.
+
+With proxy integration:
+1. The entire request (headers, query parameters, path parameters, body) is passed to the Lambda function as a single event object
+2. The Lambda function's response is passed directly back to the client without any transformation
+3. You don't need to configure integration and method responses in API Gateway
+
+You can disable proxy integration by setting the `use_proxy_integration` parameter to `False` when calling the `create_or_update_api_gateway` method:
+
+```python
+api_id, invoke_url = api_manager.create_or_update_api_gateway(
+    api_name="MyAPI",
+    resource_path="my-resource",
+    http_method="GET",
+    use_proxy_integration=False
+)
+```
+
+When using the CLI, you can disable proxy integration with the `--no-proxy` flag:
+
+```bash
+aws-lambda-api create-api --api-name "MyAPI" --resource-path "my-resource" --http-method "GET" --no-proxy
+```
+
 ### Calling the API Gateway Endpoint
 
 ```python

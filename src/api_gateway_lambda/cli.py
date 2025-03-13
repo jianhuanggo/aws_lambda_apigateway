@@ -36,7 +36,8 @@ def create_api_gateway(args: argparse.Namespace) -> None:
             resource_path=args.resource_path,
             http_method=args.http_method,
             stage_name=args.stage,
-            lambda_function_name=args.function_name
+            lambda_function_name=args.function_name,
+            use_proxy_integration=not args.no_proxy
         )
         
         logger.info(f"API Gateway created/updated successfully with ID: {api_id}")
@@ -206,6 +207,7 @@ def main() -> None:
     create_parser.add_argument('--stage', type=str, default='prod', help='API Gateway stage')
     create_parser.add_argument('--function-name', type=str, help='Lambda function name (defaults to config)')
     create_parser.add_argument('--profile', type=str, default='latest', help='AWS profile name to use')
+    create_parser.add_argument('--no-proxy', action='store_true', help='Disable Lambda proxy integration')
     
     # Invoke Lambda command
     invoke_parser = subparsers.add_parser('invoke-lambda', help='Invoke a Lambda function directly')

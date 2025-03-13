@@ -55,7 +55,8 @@ class TestCLI:
             http_method='GET',
             stage='prod',
             function_name='test_function',
-            profile='latest'
+            profile='latest',
+            no_proxy=False
         )
         
         # Call the function
@@ -67,7 +68,8 @@ class TestCLI:
             resource_path='test-resource',
             http_method='GET',
             stage_name='prod',
-            lambda_function_name='test_function'
+            lambda_function_name='test_function',
+            use_proxy_integration=True
         )
 
     def test_create_api_gateway_error(self, mock_api_gateway_manager, mock_sys_exit):
@@ -83,7 +85,8 @@ class TestCLI:
             http_method='GET',
             stage='prod',
             function_name='test_function',
-            profile='latest'
+            profile='latest',
+            no_proxy=False
         )
         
         # Call the function
@@ -324,7 +327,8 @@ class TestCLI:
             resource_path='test-resource',
             http_method='GET',
             stage='prod',
-            function_name='test_function'
+            function_name='test_function',
+            no_proxy=False
         )
         
         # Call the function

@@ -22,41 +22,64 @@ class TestApiGatewayManager:
         # Configure the mock clients
         mock_apigateway = MagicMock()
         mock_lambda = MagicMock()
+        mock_sts = MagicMock()
+        mock_sts.get_caller_identity.return_value = {'Account': '123456789012'}
+        
         mock_boto3_client.side_effect = lambda service, **kwargs: {
             'apigateway': mock_apigateway,
             'lambda': mock_lambda,
-            'sts': MagicMock(get_caller_identity=MagicMock(return_value={'Account': '123456789012'}))
+            'sts': mock_sts
         }[service]
         
-        # Create the manager
-        manager = ApiGatewayManager()
+        # Create the manager with mocked boto3 session
+        with patch('boto3.Session') as mock_session:
+            mock_session_instance = MagicMock()
+            mock_session_instance.client.side_effect = lambda service, **kwargs: {
+                'apigateway': mock_apigateway,
+                'lambda': mock_lambda,
+                'sts': mock_sts
+            }[service]
+            mock_session.return_value = mock_session_instance
+            
+            manager = ApiGatewayManager()
+            
+            # Replace the actual clients with mocks
+            manager.api_gateway_client = mock_apigateway
+            manager.lambda_client = mock_lambda
+            
+            return manager
         
-        # Add the mock clients to the manager for testing
-        manager._apigateway_client = mock_apigateway
-        manager._lambda_client = mock_lambda
-        
-        return manager
-        
-    def test_init_with_profile_name(self, mock_boto3_client):
+    def test_init_with_profile_name(self):
         """Test initialization with profile name."""
-        # Configure the mock clients
-        mock_apigateway = MagicMock()
-        mock_lambda = MagicMock()
-        mock_boto3_client.side_effect = lambda service, **kwargs: {
-            'apigateway': mock_apigateway,
-            'lambda': mock_lambda,
-            'sts': MagicMock(get_caller_identity=MagicMock(return_value={'Account': '123456789012'}))
-        }[service]
-        
-        # Create the manager with a profile name
-        manager = ApiGatewayManager(profile_name='latest')
-        
-        # Verify the profile name was passed to the Config
-        assert manager.config.profile_name == 'latest'
-        
-        # Verify boto3 client was called with the correct parameters
-        mock_boto3_client.assert_any_call('apigateway', **manager.config.get_boto3_config())
-        mock_boto3_client.assert_any_call('lambda', **manager.config.get_boto3_config())
+        # Mock Config class
+        with patch('src.api_gateway_lambda.api_gateway_manager.Config') as mock_config:
+            mock_config_instance = MagicMock()
+            mock_config_instance.profile_name = 'latest'
+            mock_config_instance.get_boto3_config.return_value = {}
+            mock_config.return_value = mock_config_instance
+            
+            # Mock boto3.Session
+            with patch('boto3.Session') as mock_session:
+                mock_session_instance = MagicMock()
+                mock_apigateway = MagicMock()
+                mock_lambda = MagicMock()
+                
+                mock_session_instance.client.side_effect = lambda service, **kwargs: {
+                    'apigateway': mock_apigateway,
+                    'lambda': mock_lambda
+                }[service]
+                
+                mock_session.return_value = mock_session_instance
+                
+                # Create the manager with a profile name
+                manager = ApiGatewayManager(profile_name='latest')
+                
+                # Verify the profile name was passed to the Config
+                mock_config.assert_called_once_with()
+                assert manager.config.profile_name == 'latest'
+                
+                # Verify boto3 Session was called with the correct parameters
+                mock_session.assert_called_once_with(profile_name='latest')
 
     def test_create_api_gateway(self, api_gateway_manager):
         """Test create_api_gateway method."""
@@ -184,15 +207,15 @@ class TestApiGatewayManager:
         )
 
     def test_integrate_with_lambda(self, api_gateway_manager):
-        """Test integrate_with_lambda method."""
+        """Test integrate_with_lambda method with non-proxy integration."""
         # Configure the mocks
         api_gateway_manager.get_lambda_arn = MagicMock(
             return_value='arn:aws:lambda:us-east-1:123456789012:function:test_function'
         )
         api_gateway_manager.config.aws_region = 'us-east-1'
         
-        # Call the method
-        api_gateway_manager.integrate_with_lambda('test_api_id', 'resource_id', 'GET', 'test_function')
+        # Call the method with non-proxy integration
+        api_gateway_manager.integrate_with_lambda('test_api_id', 'resource_id', 'GET', 'test_function', use_proxy_integration=False)
         
         # Verify the mocks were called correctly
         api_gateway_manager.get_lambda_arn.assert_called_once_with('test_function')
@@ -224,6 +247,38 @@ class TestApiGatewayManager:
                 'application/json': 'Empty'
             }
         )
+        
+    def test_integrate_with_lambda_proxy(self, api_gateway_manager):
+        """Test integrate_with_lambda method with proxy integration."""
+        # Configure the mocks
+        api_gateway_manager.get_lambda_arn = MagicMock(
+            return_value='arn:aws:lambda:us-east-1:123456789012:function:test_function'
+        )
+        api_gateway_manager.config.aws_region = 'us-east-1'
+        
+        # Reset the mock call counts
+        api_gateway_manager.api_gateway_client.put_integration.reset_mock()
+        api_gateway_manager.api_gateway_client.put_integration_response.reset_mock()
+        api_gateway_manager.api_gateway_client.put_method_response.reset_mock()
+        
+        # Call the method with proxy integration (default)
+        api_gateway_manager.integrate_with_lambda('test_api_id', 'resource_id', 'GET', 'test_function')
+        
+        # Verify the mocks were called correctly
+        api_gateway_manager.get_lambda_arn.assert_called_once_with('test_function')
+        
+        api_gateway_manager.api_gateway_client.put_integration.assert_called_once_with(
+            restApiId='test_api_id',
+            resourceId='resource_id',
+            httpMethod='GET',
+            type='AWS_PROXY',
+            integrationHttpMethod='POST',
+            uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:123456789012:function:test_function/invocations'
+        )
+        
+        # Verify that integration response and method response are not called for proxy integration
+        api_gateway_manager.api_gateway_client.put_integration_response.assert_not_called()
+        api_gateway_manager.api_gateway_client.put_method_response.assert_not_called()
 
     def test_deploy_api(self, api_gateway_manager):
         """Test deploy_api method."""
@@ -309,7 +364,7 @@ class TestApiGatewayManager:
         
         # Call the method
         api_id, invoke_url = api_gateway_manager.create_or_update_api_gateway(
-            'TestAPI', 'test', 'GET', lambda_function_name='test_function'
+            'TestAPI', 'test', 'GET', lambda_function_name='test_function', use_proxy_integration=True
         )
         
         # Verify the result
@@ -322,7 +377,7 @@ class TestApiGatewayManager:
         api_gateway_manager.create_resource.assert_called_once_with('existing_api_id', 'test')
         api_gateway_manager.create_method.assert_called_once_with('existing_api_id', 'new_resource_id', 'GET')
         api_gateway_manager.integrate_with_lambda.assert_called_once_with(
-            'existing_api_id', 'new_resource_id', 'GET', 'test_function'
+            'existing_api_id', 'new_resource_id', 'GET', 'test_function', True
         )
         api_gateway_manager.add_lambda_permission.assert_called_once_with('test_function', 'existing_api_id')
         api_gateway_manager.deploy_api.assert_called_once_with('existing_api_id', 'prod')
@@ -360,7 +415,8 @@ class TestApiGatewayManager:
         result_api_id, result_invoke_url = api_gateway_manager.create_or_update_api_gateway(
             api_name=api_name,
             resource_path=resource_path,
-            http_method=http_method
+            http_method=http_method,
+            use_proxy_integration=True
         )
         
         # Verify the result
@@ -374,7 +430,7 @@ class TestApiGatewayManager:
         api_gateway_manager.delete_resource.assert_called_once_with(api_id, resource_id)
         api_gateway_manager.create_resource.assert_called_once_with(api_id, resource_path)
         api_gateway_manager.create_method.assert_called_once_with(api_id, new_resource_id, http_method)
-        api_gateway_manager.integrate_with_lambda.assert_called_once_with(api_id, new_resource_id, http_method, function_name)
+        api_gateway_manager.integrate_with_lambda.assert_called_once_with(api_id, new_resource_id, http_method, function_name, True)
         api_gateway_manager.add_lambda_permission.assert_called_once_with(function_name, api_id)
         api_gateway_manager.deploy_api.assert_called_once_with(api_id, 'prod')
         api_gateway_manager.get_invoke_url.assert_called_once_with(api_id, 'prod', resource_path)
